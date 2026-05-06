@@ -4,6 +4,7 @@ import android.annotation.SuppressLint
 import android.content.DialogInterface
 import android.content.SharedPreferences
 import android.os.Bundle
+import android.text.InputType
 import android.view.Gravity
 import android.view.LayoutInflater
 import android.view.View
@@ -11,11 +12,13 @@ import android.view.ViewConfiguration
 import android.view.ViewGroup
 import android.view.WindowManager
 import android.widget.LinearLayout
+import androidx.preference.EditTextPreference
 import androidx.preference.Preference
 import io.legado.app.R
 import io.legado.app.base.BasePrefDialogFragment
 import io.legado.app.constant.EventBus
 import io.legado.app.constant.PreferKey
+import io.legado.app.help.ai.AiChapterCommenter
 import io.legado.app.help.config.AppConfig
 import io.legado.app.help.config.ReadBookConfig
 import io.legado.app.lib.prefs.fragment.PreferenceFragment
@@ -28,7 +31,10 @@ import io.legado.app.ui.widget.number.NumberPickerDialog
 import io.legado.app.utils.canvasrecorder.CanvasRecorderFactory
 import io.legado.app.utils.dpToPx
 import io.legado.app.utils.getPrefBoolean
+import io.legado.app.utils.getPrefInt
+import io.legado.app.utils.getPrefString
 import io.legado.app.utils.postEvent
+import io.legado.app.utils.putPrefInt
 import io.legado.app.utils.removePref
 import io.legado.app.utils.setEdgeEffectColor
 
@@ -85,6 +91,20 @@ class MoreConfigDialog : BasePrefDialogFragment() {
         override fun onCreatePreferences(savedInstanceState: Bundle?, rootKey: String?) {
             addPreferencesFromResource(R.xml.pref_config_read)
             upPreferenceSummary(PreferKey.pageTouchSlop, slopSquare.toString())
+            upPreferenceSummary(PreferKey.aiChapterCommentBaseUrl, getPrefString(PreferKey.aiChapterCommentBaseUrl))
+            upPreferenceSummary(PreferKey.aiChapterCommentModel, getPrefString(PreferKey.aiChapterCommentModel))
+            upPreferenceSummary(PreferKey.aiChapterCommentApiKey, getPrefString(PreferKey.aiChapterCommentApiKey))
+            upPreferenceSummary(
+                PreferKey.aiChapterCommentCount,
+                AiChapterCommenter.getCommentCount().toString()
+            )
+            findPreference<EditTextPreference>(PreferKey.aiChapterCommentApiKey)?.let {
+                it.setOnBindEditTextListener { editText ->
+                    editText.inputType =
+                        InputType.TYPE_TEXT_VARIATION_PASSWORD or InputType.TYPE_CLASS_TEXT
+                    editText.setSelection(editText.text.length)
+                }
+            }
             if (!CanvasRecorderFactory.isSupport) {
                 removePref(PreferKey.optimizeRender)
                 preferenceScreen.removePreferenceRecursively(PreferKey.optimizeRender)
@@ -173,6 +193,21 @@ class MoreConfigDialog : BasePrefDialogFragment() {
                 PreferKey.paddingDisplayCutouts -> {
                     postEvent(EventBus.UP_CONFIG, arrayListOf(2))
                 }
+
+                PreferKey.aiChapterCommentBaseUrl,
+                PreferKey.aiChapterCommentModel,
+                PreferKey.aiChapterCommentApiKey -> {
+                    upPreferenceSummary(key, getPrefString(key))
+                }
+
+                PreferKey.aiChapterCommentCount -> {
+                    upPreferenceSummary(key, AiChapterCommenter.getCommentCount().toString())
+                }
+
+                PreferKey.aiChapterCommentEnabled,
+                PreferKey.aiChapterCommentFloatingWindow -> {
+                    postEvent(PreferKey.aiChapterCommentFloatingWindow, getPrefBoolean(key))
+                }
             }
         }
 
@@ -194,6 +229,26 @@ class MoreConfigDialog : BasePrefDialogFragment() {
                             postEvent(EventBus.UP_CONFIG, arrayListOf(4))
                         }
                 }
+
+                PreferKey.aiChapterCommentCount -> {
+                    NumberPickerDialog(requireContext())
+                        .setTitle(getString(R.string.ai_comment_count))
+                        .setMaxValue(AiChapterCommenter.MAX_COMMENT_COUNT)
+                        .setMinValue(AiChapterCommenter.MIN_COMMENT_COUNT)
+                        .setValue(
+                            getPrefInt(
+                                PreferKey.aiChapterCommentCount,
+                                AiChapterCommenter.DEFAULT_COMMENT_COUNT
+                            ).coerceIn(
+                                AiChapterCommenter.MIN_COMMENT_COUNT,
+                                AiChapterCommenter.MAX_COMMENT_COUNT
+                            )
+                        )
+                        .show {
+                            putPrefInt(PreferKey.aiChapterCommentCount, it)
+                            upPreferenceSummary(PreferKey.aiChapterCommentCount, it.toString())
+                        }
+                }
             }
             return super.onPreferenceTreeClick(preference)
         }
@@ -204,6 +259,33 @@ class MoreConfigDialog : BasePrefDialogFragment() {
             when (preferenceKey) {
                 PreferKey.pageTouchSlop -> preference.summary =
                     getString(R.string.page_touch_slop_summary, value)
+
+                PreferKey.aiChapterCommentApiKey -> preference.summary = when {
+                    value.isNullOrEmpty() -> getString(R.string.ai_comment_api_key_summary)
+                    else -> "*".repeat(value.length.coerceAtMost(32))
+                }
+
+                PreferKey.aiChapterCommentBaseUrl -> preference.summary = when {
+                    value.isNullOrBlank() -> getString(R.string.ai_comment_base_url_summary)
+                    else -> value
+                }
+
+                PreferKey.aiChapterCommentModel -> preference.summary = when {
+                    value.isNullOrBlank() -> getString(R.string.ai_comment_model_summary)
+                    else -> value
+                }
+
+                PreferKey.aiChapterCommentCount -> {
+                    val count = value?.toIntOrNull()
+                        ?: AiChapterCommenter.DEFAULT_COMMENT_COUNT
+                    preference.summary = getString(
+                        R.string.ai_comment_count_summary,
+                        count.coerceIn(
+                            AiChapterCommenter.MIN_COMMENT_COUNT,
+                            AiChapterCommenter.MAX_COMMENT_COUNT
+                        )
+                    )
+                }
             }
         }
 

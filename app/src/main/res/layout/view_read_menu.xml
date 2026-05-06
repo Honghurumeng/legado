@@ -417,6 +417,50 @@
                     android:layout_weight="2"
                     android:importantForAccessibility="no" />
 
+                <!--AI评论按钮-->
+                <LinearLayout
+                    android:id="@+id/ll_ai_comment"
+                    android:layout_width="60dp"
+                    android:layout_height="wrap_content"
+                    android:background="?android:attr/selectableItemBackgroundBorderless"
+                    android:clickable="true"
+                    android:contentDescription="@string/ai_comment"
+                    android:focusable="true"
+                    android:orientation="vertical"
+                    android:paddingBottom="7dp"
+                    tools:ignore="VisualLintBounds">
+
+                    <androidx.appcompat.widget.AppCompatImageView
+                        android:id="@+id/iv_ai_comment"
+                        android:layout_width="match_parent"
+                        android:layout_height="0dp"
+                        android:layout_weight="1"
+                        android:adjustViewBounds="true"
+                        android:contentDescription="@string/ai_comment"
+                        android:maxHeight="20dp"
+                        android:src="@drawable/ic_chat_bubble_outline"
+                        app:tint="@color/primaryText"
+                        tools:ignore="NestedWeights" />
+
+                    <TextView
+                        android:id="@+id/tv_ai_comment"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_gravity="center_horizontal"
+                        android:layout_marginTop="3dp"
+                        android:ellipsize="middle"
+                        android:singleLine="true"
+                        android:text="@string/ai_comment"
+                        android:textColor="@color/primaryText"
+                        android:textSize="12sp" />
+                </LinearLayout>
+
+                <View
+                    android:layout_width="0dp"
+                    android:layout_height="match_parent"
+                    android:layout_weight="2"
+                    android:importantForAccessibility="no" />
+
                 <!--设置按钮-->
                 <LinearLayout
                     android:id="@+id/ll_setting"

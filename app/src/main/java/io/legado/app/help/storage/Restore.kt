@@ -10,6 +10,7 @@ import io.legado.app.constant.AppConst.androidId
 import io.legado.app.constant.AppLog
 import io.legado.app.constant.PreferKey
 import io.legado.app.data.appDb
+import io.legado.app.data.entities.AiChapterComment
 import io.legado.app.data.entities.Book
 import io.legado.app.data.entities.BookGroup
 import io.legado.app.data.entities.BookSource
@@ -180,6 +181,9 @@ object Restore {
                     }
                 }
             }
+        }
+        fileToListT<AiChapterComment>(path, "aiChapterComments.json")?.let {
+            appDb.aiChapterCommentDao.insert(*it.toTypedArray())
         }
         File(path, "servers.json").takeIf {
             it.exists()

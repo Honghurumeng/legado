@@ -12,6 +12,7 @@ import android.view.Menu
 import android.view.MenuItem
 import android.view.MotionEvent
 import android.view.View
+import android.view.ViewConfiguration
 import androidx.activity.addCallback
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
@@ -106,9 +107,12 @@ import io.legado.app.utils.NetworkUtils
 import io.legado.app.utils.StartActivityContract
 import io.legado.app.utils.applyOpenTint
 import io.legado.app.utils.buildMainHandler
+import io.legado.app.utils.defaultSharedPreferences
 import io.legado.app.utils.dismissDialogFragment
+import io.legado.app.utils.getFloat
 import io.legado.app.utils.getPrefBoolean
 import io.legado.app.utils.getPrefString
+import io.legado.app.utils.gone
 import io.legado.app.utils.hexString
 import io.legado.app.utils.iconItemOnLongClick
 import io.legado.app.utils.invisible
@@ -119,6 +123,7 @@ import io.legado.app.utils.navigationBarGravity
 import io.legado.app.utils.observeEvent
 import io.legado.app.utils.observeEventSticky
 import io.legado.app.utils.postEvent
+import io.legado.app.utils.putFloat
 import io.legado.app.utils.showDialogFragment
 import io.legado.app.utils.showHelp
 import io.legado.app.utils.startActivity
@@ -134,6 +139,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlin.math.abs
 
 /**
  * 阅读界面
@@ -254,6 +260,14 @@ class ReadBookActivity : BaseReadBookActivity(),
     }
     private var justInitData: Boolean = false
     private var syncDialog: AlertDialog? = null
+    private val aiCommentFloatTouchSlop by lazy {
+        ViewConfiguration.get(this).scaledTouchSlop
+    }
+    private var aiCommentFloatDownRawX = 0f
+    private var aiCommentFloatDownRawY = 0f
+    private var aiCommentFloatStartX = 0f
+    private var aiCommentFloatStartY = 0f
+    private var aiCommentFloatDragging = false
 
     @SuppressLint("ClickableViewAccessibility")
     override fun onActivityCreated(savedInstanceState: Bundle?) {
@@ -262,6 +276,11 @@ class ReadBookActivity : BaseReadBookActivity(),
         binding.cursorRight.setColorFilter(accentColor)
         binding.cursorLeft.setOnTouchListener(this)
         binding.cursorRight.setOnTouchListener(this)
+        binding.fabAiCommentFloat.setOnClickListener {
+            showAiComments()
+        }
+        binding.fabAiCommentFloat.setOnTouchListener(::onAiCommentFloatTouch)
+        upAiCommentFloatVisibility()
         window.setBackgroundDrawable(null)
         upScreenTimeOut()
         ReadBook.register(this)
@@ -357,6 +376,7 @@ class ReadBookActivity : BaseReadBookActivity(),
                 ReadBook.syncProgress({ progress -> sureNewProgress(progress) })
             }
         }
+        upAiCommentFloatVisibility()
     }
 
     override fun onPause() {
@@ -1209,6 +1229,10 @@ class ReadBookActivity : BaseReadBookActivity(),
         showDialogFragment<ReadStyleDialog>()
     }
 
+    override fun showAiComments() {
+        showDialogFragment<AiChapterCommentsDialog>()
+    }
+
     /**
      * 显示更多设置
      */
@@ -1226,6 +1250,7 @@ class ReadBookActivity : BaseReadBookActivity(),
     override fun upSystemUiVisibility() {
         upSystemUiVisibility(isInMultiWindow, !menuLayoutIsVisible, bottomDialog > 0)
         upNavigationBarColor()
+        upAiCommentFloatVisibility()
     }
 
     // 退出全文搜索
@@ -1494,10 +1519,127 @@ class ReadBookActivity : BaseReadBookActivity(),
 
     override fun onMenuShow() {
         binding.readView.autoPager.pause()
+        upAiCommentFloatVisibility()
     }
 
     override fun onMenuHide() {
         binding.readView.autoPager.resume()
+        upAiCommentFloatVisibility()
+    }
+
+    private fun upAiCommentFloatVisibility() {
+        val shouldHide = !getPrefBoolean(PreferKey.aiChapterCommentEnabled, false) ||
+                !getPrefBoolean(PreferKey.aiChapterCommentFloatingWindow, false) ||
+                menuLayoutIsVisible
+        binding.fabAiCommentFloat.gone(shouldHide)
+        if (!shouldHide) {
+            binding.fabAiCommentFloat.post {
+                restoreAiCommentFloatPosition()
+            }
+        }
+    }
+
+    private fun onAiCommentFloatTouch(view: View, event: MotionEvent): Boolean {
+        when (event.actionMasked) {
+            MotionEvent.ACTION_DOWN -> {
+                aiCommentFloatDownRawX = event.rawX
+                aiCommentFloatDownRawY = event.rawY
+                aiCommentFloatStartX = view.x
+                aiCommentFloatStartY = view.y
+                aiCommentFloatDragging = false
+                view.parent?.requestDisallowInterceptTouchEvent(true)
+                return true
+            }
+
+            MotionEvent.ACTION_MOVE -> {
+                val dx = event.rawX - aiCommentFloatDownRawX
+                val dy = event.rawY - aiCommentFloatDownRawY
+                if (!aiCommentFloatDragging &&
+                    (abs(dx) > aiCommentFloatTouchSlop || abs(dy) > aiCommentFloatTouchSlop)
+                ) {
+                    aiCommentFloatDragging = true
+                }
+                if (aiCommentFloatDragging) {
+                    moveAiCommentFloatTo(aiCommentFloatStartX + dx, aiCommentFloatStartY + dy)
+                }
+                return true
+            }
+
+            MotionEvent.ACTION_UP -> {
+                view.parent?.requestDisallowInterceptTouchEvent(false)
+                if (aiCommentFloatDragging) {
+                    aiCommentFloatDragging = false
+                    clampAiCommentFloatPosition()
+                    saveAiCommentFloatPosition()
+                } else {
+                    view.performClick()
+                }
+                return true
+            }
+
+            MotionEvent.ACTION_CANCEL -> {
+                view.parent?.requestDisallowInterceptTouchEvent(false)
+                aiCommentFloatDragging = false
+                clampAiCommentFloatPosition()
+                return true
+            }
+        }
+        return false
+    }
+
+    private fun moveAiCommentFloatTo(x: Float, y: Float) {
+        val fab = binding.fabAiCommentFloat
+        val parent = binding.root
+        if (parent.width <= 0 || parent.height <= 0 || fab.width <= 0 || fab.height <= 0) {
+            return
+        }
+        fab.x = x.coerceIn(0f, (parent.width - fab.width).toFloat())
+        fab.y = y.coerceIn(0f, (parent.height - fab.height).toFloat())
+    }
+
+    private fun clampAiCommentFloatPosition() {
+        moveAiCommentFloatTo(binding.fabAiCommentFloat.x, binding.fabAiCommentFloat.y)
+    }
+
+    private fun restoreAiCommentFloatPosition() {
+        val fab = binding.fabAiCommentFloat
+        val parent = binding.root
+        if (parent.width <= 0 || parent.height <= 0 || fab.width <= 0 || fab.height <= 0) {
+            return
+        }
+        val prefs = defaultSharedPreferences
+        if (!prefs.contains(PreferKey.aiChapterCommentFloatXRatio) ||
+            !prefs.contains(PreferKey.aiChapterCommentFloatYRatio)
+        ) {
+            clampAiCommentFloatPosition()
+            return
+        }
+        val maxX = (parent.width - fab.width).toFloat()
+        val maxY = (parent.height - fab.height).toFloat()
+        moveAiCommentFloatTo(
+            maxX * prefs.getFloat(PreferKey.aiChapterCommentFloatXRatio).coerceIn(0f, 1f),
+            maxY * prefs.getFloat(PreferKey.aiChapterCommentFloatYRatio).coerceIn(0f, 1f)
+        )
+    }
+
+    private fun saveAiCommentFloatPosition() {
+        val fab = binding.fabAiCommentFloat
+        val parent = binding.root
+        if (parent.width <= 0 || parent.height <= 0 || fab.width <= 0 || fab.height <= 0) {
+            return
+        }
+        val maxX = (parent.width - fab.width).toFloat()
+        val maxY = (parent.height - fab.height).toFloat()
+        defaultSharedPreferences.run {
+            putFloat(
+                PreferKey.aiChapterCommentFloatXRatio,
+                if (maxX > 0f) (fab.x / maxX).coerceIn(0f, 1f) else 0f
+            )
+            putFloat(
+                PreferKey.aiChapterCommentFloatYRatio,
+                if (maxY > 0f) (fab.y / maxY).coerceIn(0f, 1f) else 0f
+            )
+        }
     }
 
     override fun onLayoutPageCompleted(index: Int, page: TextPage) {
@@ -1682,6 +1824,12 @@ class ReadBookActivity : BaseReadBookActivity(),
         }
         observeEvent<Boolean>(PreferKey.keepLight) {
             upScreenTimeOut()
+        }
+        observeEvent<Boolean>(
+            PreferKey.aiChapterCommentEnabled,
+            PreferKey.aiChapterCommentFloatingWindow
+        ) {
+            upAiCommentFloatVisibility()
         }
         observeEvent<Boolean>(PreferKey.textSelectAble) {
             readView.curPage.upSelectAble(it)

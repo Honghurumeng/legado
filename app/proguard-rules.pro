@@ -32,6 +32,13 @@
 # 避免混淆泛型
 -keepattributes Signature
 
+# Gson (R8/Proguard): keep fields annotated with @SerializedName.
+# Without this, release builds may obfuscate JSON keys (e.g. "model" -> "a"),
+# causing OpenAI-compatible providers to report "model name cannot be empty".
+-keepclassmembers,allowobfuscation class * {
+    @com.google.gson.annotations.SerializedName <fields>;
+}
+
 # 指定混淆是采用的算法，后面的参数是一个过滤器
 # 这个过滤器是谷歌推荐的算法，一般不做更改
 -optimizations !code/simplification/cast,!field/*,!class/merging/*

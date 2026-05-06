@@ -1231,4 +1231,25 @@
     <string name="auto_check_new_backup_t">自动检查新备份</string>
     <string name="auto_check_new_backup_s">打开软件时检查是否有新备份，有新备份时提示是否更新</string>
     <string name="sys_image_picker">系统图片选择器</string>
+
+    <!-- AI chapter comments -->
+    <string name="ai_comment">AI评论</string>
+    <string name="ai_comment_enabled">章节 AI 评论</string>
+    <string name="ai_comment_enabled_summary">点击按钮后才会为当前章节生成多读者讨论式评论。</string>
+    <string name="ai_comment_base_url">LLM Base URL</string>
+    <string name="ai_comment_base_url_summary">OpenAI 兼容接口 Base URL（例如 https://api.openai.com/v1）</string>
+    <string name="ai_comment_api_key">LLM API Key</string>
+    <string name="ai_comment_api_key_summary">仅用于 AI 评论功能。</string>
+    <string name="ai_comment_model">LLM 模型</string>
+    <string name="ai_comment_model_summary">模型名称（例如 gpt-4o-mini、deepseek-chat）</string>
+    <string name="ai_comment_count">评论条数</string>
+    <string name="ai_comment_count_summary">每次生成 %1$d 条评论</string>
+    <string name="ai_comment_floating_window">AI 评论悬浮按钮</string>
+    <string name="ai_comment_floating_window_summary">在阅读页显示 AI 评论悬浮按钮。</string>
+    <string name="ai_comment_generate">生成</string>
+    <string name="ai_comment_generating">生成中…</string>
+    <string name="ai_comment_regenerate">重新生成</string>
+    <string name="ai_comment_not_enabled">AI 评论未开启。</string>
+    <string name="ai_comment_not_configured">请先配置 Base URL / API Key / 模型。</string>
+    <string name="ai_comment_generate_failed">生成 AI 评论失败。</string>
 </resources>

@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical">
@@ -30,6 +31,22 @@
         android:contentDescription="@string/select_end"
         android:src="@drawable/ic_cursor_right"
         android:visibility="invisible" />
+
+    <com.google.android.material.floatingactionbutton.FloatingActionButton
+        android:id="@+id/fab_ai_comment_float"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="end|center_vertical"
+        android:layout_marginEnd="16dp"
+        android:contentDescription="@string/ai_comment"
+        android:src="@drawable/ic_chat_bubble_outline"
+        android:tint="@color/primaryText"
+        android:tooltipText="@string/ai_comment"
+        android:visibility="gone"
+        app:backgroundTint="@color/background_menu"
+        app:elevation="2dp"
+        app:fabSize="mini"
+        app:pressedTranslationZ="2dp" />
 
     <io.legado.app.ui.book.read.ReadMenu
         android:id="@+id/read_menu"

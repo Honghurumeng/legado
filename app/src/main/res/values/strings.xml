@@ -1233,4 +1233,25 @@
     <string name="auto_check_new_backup_t">自动检查新备份</string>
     <string name="auto_check_new_backup_s">打开软件时检查是否有新备份，有新备份时提示是否更新</string>
     <string name="sys_image_picker">系统图片选择器</string>
+
+    <!-- AI chapter comments -->
+    <string name="ai_comment">AI Comments</string>
+    <string name="ai_comment_enabled">AI Chapter Comments</string>
+    <string name="ai_comment_enabled_summary">Generate multi-reader AI comments for the current chapter on demand.</string>
+    <string name="ai_comment_base_url">LLM Base URL</string>
+    <string name="ai_comment_base_url_summary">OpenAI-compatible base URL (e.g. https://api.openai.com/v1)</string>
+    <string name="ai_comment_api_key">LLM API Key</string>
+    <string name="ai_comment_api_key_summary">Used only for AI comments.</string>
+    <string name="ai_comment_model">LLM Model</string>
+    <string name="ai_comment_model_summary">Model name (e.g. gpt-4o-mini, deepseek-chat)</string>
+    <string name="ai_comment_count">Comment count</string>
+    <string name="ai_comment_count_summary">%1$d comments per generation</string>
+    <string name="ai_comment_floating_window">Floating AI comment button</string>
+    <string name="ai_comment_floating_window_summary">Show a floating AI comment button on the reading page.</string>
+    <string name="ai_comment_generate">Generate</string>
+    <string name="ai_comment_generating">Generating…</string>
+    <string name="ai_comment_regenerate">Regenerate</string>
+    <string name="ai_comment_not_enabled">AI comments are disabled.</string>
+    <string name="ai_comment_not_configured">Please configure Base URL / API Key / Model first.</string>
+    <string name="ai_comment_generate_failed">Failed to generate AI comments.</string>
 </resources>

@@ -186,4 +186,14 @@ object PreferKey {
     const val showReadTitleAddition = "showReadTitleAddition"
     const val readBarStyleFollowPage = "readBarStyleFollowPage"
     const val contentSelectSpeakMod = "contentReadAloudMod"
+
+    // AI chapter comments (OpenAI-compatible)
+    const val aiChapterCommentEnabled = "aiChapterCommentEnabled"
+    const val aiChapterCommentBaseUrl = "aiChapterCommentBaseUrl"
+    const val aiChapterCommentApiKey = "aiChapterCommentApiKey"
+    const val aiChapterCommentModel = "aiChapterCommentModel"
+    const val aiChapterCommentCount = "aiChapterCommentCount"
+    const val aiChapterCommentFloatingWindow = "aiChapterCommentFloatingWindow"
+    const val aiChapterCommentFloatXRatio = "aiChapterCommentFloatXRatio"
+    const val aiChapterCommentFloatYRatio = "aiChapterCommentFloatYRatio"
 }
