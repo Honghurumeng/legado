@@ -2,6 +2,7 @@ package io.legado.app.ui.book.read
 
 import android.annotation.SuppressLint
 import android.content.Intent
+import android.content.res.ColorStateList
 import android.content.res.Configuration
 import android.os.Bundle
 import android.os.Looper
@@ -17,6 +18,7 @@ import androidx.activity.addCallback
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.widget.PopupMenu
+import androidx.core.content.ContextCompat
 import androidx.core.net.toUri
 import androidx.core.view.get
 import androidx.core.view.size
@@ -270,7 +272,7 @@ class ReadBookActivity : BaseReadBookActivity(),
     private var aiCommentFloatStartX = 0f
     private var aiCommentFloatStartY = 0f
     private var aiCommentFloatDragging = false
-    private var aiCommentFloatBadgeJob: Job? = null
+    private var aiCommentFloatIconJob: Job? = null
 
     @SuppressLint("ClickableViewAccessibility")
     override fun onActivityCreated(savedInstanceState: Bundle?) {
@@ -279,10 +281,6 @@ class ReadBookActivity : BaseReadBookActivity(),
         binding.cursorRight.setColorFilter(accentColor)
         binding.cursorLeft.setOnTouchListener(this)
         binding.cursorRight.setOnTouchListener(this)
-        binding.layoutAiCommentFloat.setOnClickListener {
-            showAiComments()
-        }
-        binding.layoutAiCommentFloat.setOnTouchListener(::onAiCommentFloatTouch)
         binding.fabAiCommentFloat.setOnClickListener {
             showAiComments()
         }
@@ -1022,7 +1020,7 @@ class ReadBookActivity : BaseReadBookActivity(),
             ReadBook.readAloud()
         }
         loadStates = true
-        upAiCommentFloatBadge()
+        upAiCommentFloatIconTint()
     }
 
     /**
@@ -1039,7 +1037,7 @@ class ReadBookActivity : BaseReadBookActivity(),
                 upSeekBarProgress()
             }
             loadStates = false
-            upAiCommentFloatBadge()
+            upAiCommentFloatIconTint()
             success?.invoke()
         }
     }
@@ -1054,7 +1052,7 @@ class ReadBookActivity : BaseReadBookActivity(),
             upSeekBarProgress()
         }
         loadStates = false
-        upAiCommentFloatBadge()
+        upAiCommentFloatIconTint()
     }
 
     override fun upPageAnim(upRecorder: Boolean) {
@@ -1541,38 +1539,49 @@ class ReadBookActivity : BaseReadBookActivity(),
         val shouldHide = !getPrefBoolean(PreferKey.aiChapterCommentEnabled, false) ||
                 !getPrefBoolean(PreferKey.aiChapterCommentFloatingWindow, false) ||
                 menuLayoutIsVisible
-        binding.layoutAiCommentFloat.gone(shouldHide)
+        binding.fabAiCommentFloat.gone(shouldHide)
         if (!shouldHide) {
-            binding.layoutAiCommentFloat.post {
+            binding.fabAiCommentFloat.post {
                 restoreAiCommentFloatPosition()
-                upAiCommentFloatBadge()
+                upAiCommentFloatIconTint()
             }
         } else {
-            aiCommentFloatBadgeJob?.cancel()
-            binding.viewAiCommentFloatBadge.gone()
+            aiCommentFloatIconJob?.cancel()
+            setAiCommentFloatIconTint(false)
         }
     }
 
-    private fun upAiCommentFloatBadge() {
-        aiCommentFloatBadgeJob?.cancel()
-        if (binding.layoutAiCommentFloat.visibility != View.VISIBLE) {
-            binding.viewAiCommentFloatBadge.gone()
+    private fun upAiCommentFloatIconTint() {
+        aiCommentFloatIconJob?.cancel()
+        if (binding.fabAiCommentFloat.visibility != View.VISIBLE) {
+            setAiCommentFloatIconTint(false)
             return
         }
         val book = ReadBook.book ?: run {
-            binding.viewAiCommentFloatBadge.gone()
+            setAiCommentFloatIconTint(false)
             return
         }
         val chapterIndex = ReadBook.durChapterIndex
-        aiCommentFloatBadgeJob = lifecycleScope.launch {
+        aiCommentFloatIconJob = lifecycleScope.launch {
             delay(120)
             val hasStoredComment = withContext(IO) {
                 hasStoredAiComment(book, chapterIndex)
             }
             if (ReadBook.book?.bookUrl == book.bookUrl && ReadBook.durChapterIndex == chapterIndex) {
-                binding.viewAiCommentFloatBadge.gone(!hasStoredComment)
+                setAiCommentFloatIconTint(hasStoredComment)
             }
         }
+    }
+
+    private fun setAiCommentFloatIconTint(hasStoredComment: Boolean) {
+        val colorRes = if (hasStoredComment) {
+            R.color.wechat_green
+        } else {
+            R.color.primaryText
+        }
+        binding.fabAiCommentFloat.imageTintList = ColorStateList.valueOf(
+            ContextCompat.getColor(this, colorRes)
+        )
     }
 
     private fun hasStoredAiComment(book: Book, chapterIndex: Int): Boolean {
@@ -1591,15 +1600,14 @@ class ReadBookActivity : BaseReadBookActivity(),
     }
 
     private fun onAiCommentFloatTouch(view: View, event: MotionEvent): Boolean {
-        val floatView = binding.layoutAiCommentFloat
         when (event.actionMasked) {
             MotionEvent.ACTION_DOWN -> {
                 aiCommentFloatDownRawX = event.rawX
                 aiCommentFloatDownRawY = event.rawY
-                aiCommentFloatStartX = floatView.x
-                aiCommentFloatStartY = floatView.y
+                aiCommentFloatStartX = view.x
+                aiCommentFloatStartY = view.y
                 aiCommentFloatDragging = false
-                floatView.parent?.requestDisallowInterceptTouchEvent(true)
+                view.parent?.requestDisallowInterceptTouchEvent(true)
                 return true
             }
 
@@ -1618,19 +1626,19 @@ class ReadBookActivity : BaseReadBookActivity(),
             }
 
             MotionEvent.ACTION_UP -> {
-                floatView.parent?.requestDisallowInterceptTouchEvent(false)
+                view.parent?.requestDisallowInterceptTouchEvent(false)
                 if (aiCommentFloatDragging) {
                     aiCommentFloatDragging = false
                     clampAiCommentFloatPosition()
                     saveAiCommentFloatPosition()
                 } else {
-                    floatView.performClick()
+                    view.performClick()
                 }
                 return true
             }
 
             MotionEvent.ACTION_CANCEL -> {
-                floatView.parent?.requestDisallowInterceptTouchEvent(false)
+                view.parent?.requestDisallowInterceptTouchEvent(false)
                 aiCommentFloatDragging = false
                 clampAiCommentFloatPosition()
                 return true
@@ -1640,7 +1648,7 @@ class ReadBookActivity : BaseReadBookActivity(),
     }
 
     private fun moveAiCommentFloatTo(x: Float, y: Float) {
-        val fab = binding.layoutAiCommentFloat
+        val fab = binding.fabAiCommentFloat
         val parent = binding.root
         if (parent.width <= 0 || parent.height <= 0 || fab.width <= 0 || fab.height <= 0) {
             return
@@ -1650,11 +1658,11 @@ class ReadBookActivity : BaseReadBookActivity(),
     }
 
     private fun clampAiCommentFloatPosition() {
-        moveAiCommentFloatTo(binding.layoutAiCommentFloat.x, binding.layoutAiCommentFloat.y)
+        moveAiCommentFloatTo(binding.fabAiCommentFloat.x, binding.fabAiCommentFloat.y)
     }
 
     private fun restoreAiCommentFloatPosition() {
-        val fab = binding.layoutAiCommentFloat
+        val fab = binding.fabAiCommentFloat
         val parent = binding.root
         if (parent.width <= 0 || parent.height <= 0 || fab.width <= 0 || fab.height <= 0) {
             return
@@ -1675,7 +1683,7 @@ class ReadBookActivity : BaseReadBookActivity(),
     }
 
     private fun saveAiCommentFloatPosition() {
-        val fab = binding.layoutAiCommentFloat
+        val fab = binding.fabAiCommentFloat
         val parent = binding.root
         if (parent.width <= 0 || parent.height <= 0 || fab.width <= 0 || fab.height <= 0) {
             return
@@ -1884,10 +1892,10 @@ class ReadBookActivity : BaseReadBookActivity(),
             upAiCommentFloatVisibility()
         }
         observeEvent<Int>(EventBus.AI_CHAPTER_COMMENT_UPDATED) {
-            upAiCommentFloatBadge()
+            upAiCommentFloatIconTint()
         }
         observeEvent<Int>(PreferKey.aiChapterCommentCount) {
-            upAiCommentFloatBadge()
+            upAiCommentFloatIconTint()
         }
         observeEvent<Boolean>(PreferKey.textSelectAble) {
             readView.curPage.upSelectAble(it)

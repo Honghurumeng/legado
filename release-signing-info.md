@@ -1,12 +1,12 @@
 # Legado 本地 Release 签名记录
 
-记录时间：2026-05-06 14:11:07 CST
+记录时间：2026-05-06 14:35:58 CST
 
 ## APK 产物
 
 - Release APK：`/Users/rel001/Documents/GitHub/legado/app/build/outputs/apk/app/release/legado_app_3.26.050614.apk`
-- APK 文件大小：`15244960` bytes，约 `15M`
-- APK SHA-256：`eb0c5866aab28cbd2ff1c2eafa475b68a182d246dbcc314c6f0a655db77fb507`
+- APK 文件大小：`15243711` bytes，约 `15M`
+- APK SHA-256：`3e9636175fb6407a1ff7e4482e108d47e35d93a51fe00ac673a62eb28fb7941f`
 - idsig 文件：`/Users/rel001/Documents/GitHub/legado/app/build/outputs/apk/app/release/legado_app_3.26.050614.apk.idsig`
 - applicationId：`io.legadoai.app`
 - 构建任务：`:app:assembleAppRelease`
