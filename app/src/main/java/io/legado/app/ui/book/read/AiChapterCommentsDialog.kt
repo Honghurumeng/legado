@@ -10,6 +10,7 @@ import io.legado.app.R
 import io.legado.app.base.BaseDialogFragment
 import io.legado.app.base.adapter.ItemViewHolder
 import io.legado.app.base.adapter.RecyclerAdapter
+import io.legado.app.constant.EventBus
 import io.legado.app.data.appDb
 import io.legado.app.data.entities.AiChapterComment
 import io.legado.app.help.ai.AiChapterCommenter
@@ -20,6 +21,7 @@ import io.legado.app.lib.theme.primaryColor
 import io.legado.app.model.ReadBook
 import io.legado.app.utils.GSON
 import io.legado.app.utils.MD5Utils
+import io.legado.app.utils.postEvent
 import io.legado.app.utils.setLayout
 import io.legado.app.utils.toastOnUi
 import io.legado.app.utils.viewbindingdelegate.viewBinding
@@ -131,6 +133,7 @@ class AiChapterCommentsDialog : BaseDialogFragment(R.layout.dialog_recycler_view
                     commentsJson = GSON.toJson(result)
                 )
             )
+            postEvent(EventBus.AI_CHAPTER_COMMENT_UPDATED, chapter.index)
         }.onError { e ->
             binding.tvMsg.isVisible = true
             binding.tvMsg.text = e.localizedMessage ?: getString(R.string.ai_comment_generate_failed)

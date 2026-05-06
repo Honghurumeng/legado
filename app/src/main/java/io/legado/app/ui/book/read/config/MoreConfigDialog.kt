@@ -202,6 +202,7 @@ class MoreConfigDialog : BasePrefDialogFragment() {
 
                 PreferKey.aiChapterCommentCount -> {
                     upPreferenceSummary(key, AiChapterCommenter.getCommentCount().toString())
+                    postEvent(PreferKey.aiChapterCommentCount, AiChapterCommenter.getCommentCount())
                 }
 
                 PreferKey.aiChapterCommentEnabled,

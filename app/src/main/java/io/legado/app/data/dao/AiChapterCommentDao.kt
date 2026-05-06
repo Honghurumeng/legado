@@ -29,6 +29,22 @@ interface AiChapterCommentDao {
         commentCount: Int
     ): AiChapterComment?
 
+    @Query(
+        """
+        select count(*) from aiChapterComments
+        where bookUrl = :bookUrl
+        and chapterIndex = :chapterIndex
+        and contentHash = :contentHash
+        and commentCount = :commentCount
+        """
+    )
+    fun count(
+        bookUrl: String,
+        chapterIndex: Int,
+        contentHash: String,
+        commentCount: Int
+    ): Int
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     fun insert(vararg comments: AiChapterComment)
 

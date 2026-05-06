@@ -39,6 +39,7 @@ import io.legado.app.exception.NoStackTraceException
 import io.legado.app.help.AppWebDav
 import io.legado.app.help.IntentData
 import io.legado.app.help.TTS
+import io.legado.app.help.ai.AiChapterCommenter
 import io.legado.app.help.book.BookHelp
 import io.legado.app.help.book.ContentProcessor
 import io.legado.app.help.book.isAudio
@@ -103,6 +104,7 @@ import io.legado.app.ui.widget.dialog.PhotoDialog
 import io.legado.app.utils.ACache
 import io.legado.app.utils.Debounce
 import io.legado.app.utils.LogUtils
+import io.legado.app.utils.MD5Utils
 import io.legado.app.utils.NetworkUtils
 import io.legado.app.utils.StartActivityContract
 import io.legado.app.utils.applyOpenTint
@@ -268,6 +270,7 @@ class ReadBookActivity : BaseReadBookActivity(),
     private var aiCommentFloatStartX = 0f
     private var aiCommentFloatStartY = 0f
     private var aiCommentFloatDragging = false
+    private var aiCommentFloatBadgeJob: Job? = null
 
     @SuppressLint("ClickableViewAccessibility")
     override fun onActivityCreated(savedInstanceState: Bundle?) {
@@ -276,6 +279,10 @@ class ReadBookActivity : BaseReadBookActivity(),
         binding.cursorRight.setColorFilter(accentColor)
         binding.cursorLeft.setOnTouchListener(this)
         binding.cursorRight.setOnTouchListener(this)
+        binding.layoutAiCommentFloat.setOnClickListener {
+            showAiComments()
+        }
+        binding.layoutAiCommentFloat.setOnTouchListener(::onAiCommentFloatTouch)
         binding.fabAiCommentFloat.setOnClickListener {
             showAiComments()
         }
@@ -1015,6 +1022,7 @@ class ReadBookActivity : BaseReadBookActivity(),
             ReadBook.readAloud()
         }
         loadStates = true
+        upAiCommentFloatBadge()
     }
 
     /**
@@ -1031,6 +1039,7 @@ class ReadBookActivity : BaseReadBookActivity(),
                 upSeekBarProgress()
             }
             loadStates = false
+            upAiCommentFloatBadge()
             success?.invoke()
         }
     }
@@ -1045,6 +1054,7 @@ class ReadBookActivity : BaseReadBookActivity(),
             upSeekBarProgress()
         }
         loadStates = false
+        upAiCommentFloatBadge()
     }
 
     override fun upPageAnim(upRecorder: Boolean) {
@@ -1531,23 +1541,65 @@ class ReadBookActivity : BaseReadBookActivity(),
         val shouldHide = !getPrefBoolean(PreferKey.aiChapterCommentEnabled, false) ||
                 !getPrefBoolean(PreferKey.aiChapterCommentFloatingWindow, false) ||
                 menuLayoutIsVisible
-        binding.fabAiCommentFloat.gone(shouldHide)
+        binding.layoutAiCommentFloat.gone(shouldHide)
         if (!shouldHide) {
-            binding.fabAiCommentFloat.post {
+            binding.layoutAiCommentFloat.post {
                 restoreAiCommentFloatPosition()
+                upAiCommentFloatBadge()
+            }
+        } else {
+            aiCommentFloatBadgeJob?.cancel()
+            binding.viewAiCommentFloatBadge.gone()
+        }
+    }
+
+    private fun upAiCommentFloatBadge() {
+        aiCommentFloatBadgeJob?.cancel()
+        if (binding.layoutAiCommentFloat.visibility != View.VISIBLE) {
+            binding.viewAiCommentFloatBadge.gone()
+            return
+        }
+        val book = ReadBook.book ?: run {
+            binding.viewAiCommentFloatBadge.gone()
+            return
+        }
+        val chapterIndex = ReadBook.durChapterIndex
+        aiCommentFloatBadgeJob = lifecycleScope.launch {
+            delay(120)
+            val hasStoredComment = withContext(IO) {
+                hasStoredAiComment(book, chapterIndex)
+            }
+            if (ReadBook.book?.bookUrl == book.bookUrl && ReadBook.durChapterIndex == chapterIndex) {
+                binding.viewAiCommentFloatBadge.gone(!hasStoredComment)
             }
         }
     }
 
+    private fun hasStoredAiComment(book: Book, chapterIndex: Int): Boolean {
+        val chapter = appDb.bookChapterDao.getChapter(book.bookUrl, chapterIndex) ?: return false
+        val content = BookHelp.getContent(book, chapter)
+            ?: ReadBook.curTextChapter?.takeIf {
+                ReadBook.book?.bookUrl == book.bookUrl && ReadBook.durChapterIndex == chapterIndex
+            }?.getContent()
+            ?: return false
+        return appDb.aiChapterCommentDao.count(
+            bookUrl = book.bookUrl,
+            chapterIndex = chapter.index,
+            contentHash = MD5Utils.md5Encode16(content),
+            commentCount = AiChapterCommenter.getCommentCount()
+        ) > 0
+    }
+
     private fun onAiCommentFloatTouch(view: View, event: MotionEvent): Boolean {
+        val floatView = binding.layoutAiCommentFloat
         when (event.actionMasked) {
             MotionEvent.ACTION_DOWN -> {
                 aiCommentFloatDownRawX = event.rawX
                 aiCommentFloatDownRawY = event.rawY
-                aiCommentFloatStartX = view.x
-                aiCommentFloatStartY = view.y
+                aiCommentFloatStartX = floatView.x
+                aiCommentFloatStartY = floatView.y
                 aiCommentFloatDragging = false
-                view.parent?.requestDisallowInterceptTouchEvent(true)
+                floatView.parent?.requestDisallowInterceptTouchEvent(true)
                 return true
             }
 
@@ -1566,19 +1618,19 @@ class ReadBookActivity : BaseReadBookActivity(),
             }
 
             MotionEvent.ACTION_UP -> {
-                view.parent?.requestDisallowInterceptTouchEvent(false)
+                floatView.parent?.requestDisallowInterceptTouchEvent(false)
                 if (aiCommentFloatDragging) {
                     aiCommentFloatDragging = false
                     clampAiCommentFloatPosition()
                     saveAiCommentFloatPosition()
                 } else {
-                    view.performClick()
+                    floatView.performClick()
                 }
                 return true
             }
 
             MotionEvent.ACTION_CANCEL -> {
-                view.parent?.requestDisallowInterceptTouchEvent(false)
+                floatView.parent?.requestDisallowInterceptTouchEvent(false)
                 aiCommentFloatDragging = false
                 clampAiCommentFloatPosition()
                 return true
@@ -1588,7 +1640,7 @@ class ReadBookActivity : BaseReadBookActivity(),
     }
 
     private fun moveAiCommentFloatTo(x: Float, y: Float) {
-        val fab = binding.fabAiCommentFloat
+        val fab = binding.layoutAiCommentFloat
         val parent = binding.root
         if (parent.width <= 0 || parent.height <= 0 || fab.width <= 0 || fab.height <= 0) {
             return
@@ -1598,11 +1650,11 @@ class ReadBookActivity : BaseReadBookActivity(),
     }
 
     private fun clampAiCommentFloatPosition() {
-        moveAiCommentFloatTo(binding.fabAiCommentFloat.x, binding.fabAiCommentFloat.y)
+        moveAiCommentFloatTo(binding.layoutAiCommentFloat.x, binding.layoutAiCommentFloat.y)
     }
 
     private fun restoreAiCommentFloatPosition() {
-        val fab = binding.fabAiCommentFloat
+        val fab = binding.layoutAiCommentFloat
         val parent = binding.root
         if (parent.width <= 0 || parent.height <= 0 || fab.width <= 0 || fab.height <= 0) {
             return
@@ -1623,7 +1675,7 @@ class ReadBookActivity : BaseReadBookActivity(),
     }
 
     private fun saveAiCommentFloatPosition() {
-        val fab = binding.fabAiCommentFloat
+        val fab = binding.layoutAiCommentFloat
         val parent = binding.root
         if (parent.width <= 0 || parent.height <= 0 || fab.width <= 0 || fab.height <= 0) {
             return
@@ -1830,6 +1882,12 @@ class ReadBookActivity : BaseReadBookActivity(),
             PreferKey.aiChapterCommentFloatingWindow
         ) {
             upAiCommentFloatVisibility()
+        }
+        observeEvent<Int>(EventBus.AI_CHAPTER_COMMENT_UPDATED) {
+            upAiCommentFloatBadge()
+        }
+        observeEvent<Int>(PreferKey.aiChapterCommentCount) {
+            upAiCommentFloatBadge()
         }
         observeEvent<Boolean>(PreferKey.textSelectAble) {
             readView.curPage.upSelectAble(it)
